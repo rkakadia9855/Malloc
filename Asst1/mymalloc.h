@@ -3,16 +3,16 @@
 
 static char myblock[4096];
 
-struct memblock{
+struct metablock{
  size_t size;
  int free;
- struct memblock *next; 
+ struct metablock *next; 
 };
 
-struct memblock *memoryList=(void*)myblock;
+struct metablock *memoryList = (void*)myblock;
 
 void initialize();
-void split(struct memblock *correctSlot,size_t size);
-void *MyMalloc(size_t numBytes);
+void split(struct metablock *correctSlot,size_t size);
+void *malloc(size_t numBytes);
 void merge();
-void MyFree(void* ptr);
+void free(void* ptr);
