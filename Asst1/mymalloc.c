@@ -1,13 +1,16 @@
 #include <stdio.h>
 #include <stddef.h>
 #include "mymalloc.h"
-#define malloc(size_t numBytes) mymalloc(size_t numBytes, __FILE__, __LINE__)
-#define free(void* ptr) myfree(void* ptr, __FILE__, __LINE__)
+
+int initialized = 0;
 
 void initialize() {
+ //   printf("initialize called\n");
+    memoryList = (void *) myblock;
     memoryList->size = (4096 - sizeof(struct metablock));
     memoryList->free = 1;
     memoryList->next = NULL;
+//    printf("initialized success\n");
 }
 
 
@@ -25,39 +28,42 @@ void split(struct metablock *correctSlot, size_t size) {
     correctSlot->next = new;
 }
 
-void *malloc(size_t numBytes) {
+void *mymalloc(size_t numBytes, char *filename, int line) {
+//	printf("entered mymalloc\n");
     // the metablock pointers will be used to traverse through the list
     struct metablock *crnt, *prev;
     // the starting address of the allocated chunk of memory
     void *result;
-    if(!(memoryList->size)) {
+ //   printf("entering first if statement to check if need to initialize\n");
+    if(!initialized) {
         initialize();
-        printf("Memory initialized in %s on line %s\n", __FILE__, __LINE__);
+        printf("Memory initialized in %s on line %d\n", __FILE__, __LINE__);
+	initialized = 0;
     }
     crnt = memoryList;
     // we keep on traversing until we find a block that is free and of right size
     while((((crnt->size) < numBytes) || ((crnt->free) == 0)) && (crnt->next != NULL)) {
         prev = crnt;
         crnt = crnt->next;
-        printf("One block checked\n");
+  //      printf("One block checked\n");
     }
     // found the perfect block. allocate the memory and return the pointer
     if((crnt->size) == numBytes) {
         crnt->free = 0;
         result = (void *)(++crnt);
-        printf("Exact fitting block allocated\n");
+  //      printf("Exact fitting block allocated\n");
         return result;
     }
     // if the chunk is of greater size than needed, split the chunk
     else if((crnt->size) > (numBytes+sizeof(struct metablock))) {
         split(crnt, numBytes);
         result = (void *)(++crnt);
-        printf("Fitting block allocated with a split\n");
+  //      printf("Fitting block allocated with a split\n");
         return result;
     }
     else {
         result = NULL;
-        printf("Sorry. No sufficient memory to allocate\n");
+  //      printf("Sorry. No sufficient memory to allocate\n");
         return result;
     }
 }
@@ -66,9 +72,10 @@ void *malloc(size_t numBytes) {
 // this function joins the consecutive free blocks by removing the
 //  metablocks lying in between them
 void merge(){
+ //   printf("entered merge\n");
     struct metablock *crnt,*prev;
     crnt=memoryList;
-    while((crnt->next)!=NULL){
+    while((crnt != NULL) && ((crnt->next)!=NULL)){
         if((crnt->free) && (crnt->next->free)){
             crnt->size+=(crnt->next->size)+sizeof(struct metablock);
             crnt->next=crnt->next->next;
@@ -78,11 +85,14 @@ void merge(){
     }
 }
 
-void free(void* ptr){
+void myfree(void* ptr, char *filename, int line){
+ //   printf("entered free\n");
     if(((void*)myblock<=ptr)&&(ptr<=(void*)(myblock+4096))){
+//	    printf("entered if in free\n");
         struct metablock* crnt=ptr;
         --crnt;
         crnt->free=1;
+//	printf("entering merge from free\n");
         merge();
     }
     else printf("Please provide a valid pointer allocated by MyMalloc\n");

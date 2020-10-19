@@ -1,5 +1,7 @@
 #include<stdio.h>
 #include<stddef.h>
+#define malloc( x ) mymalloc( x, __FILE__, __LINE__)
+#define free( x ) myfree( x, __FILE__, __LINE__)
 
 static char myblock[4096];
 
@@ -9,10 +11,10 @@ struct metablock{
  struct metablock *next; 
 };
 
-struct metablock *memoryList = (void*)myblock;
+struct metablock *memoryList;
 
 void initialize();
 void split(struct metablock *correctSlot,size_t size);
-void *malloc(size_t numBytes);
+void *mymalloc(size_t numBytes, char *filename, int line);
 void merge();
-void free(void* ptr);
+void myfree(void* ptr, char *filename, int line);
