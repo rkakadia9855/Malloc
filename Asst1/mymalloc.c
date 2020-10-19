@@ -30,6 +30,8 @@ void split(struct metablock *correctSlot, size_t size) {
 
 void *mymalloc(size_t numBytes, char *filename, int line) {
 //	printf("entered mymalloc\n");
+    if(numBytes == 0)
+        return NULL;
     // the metablock pointers will be used to traverse through the list
     struct metablock *crnt, *prev;
     // the starting address of the allocated chunk of memory
@@ -37,7 +39,7 @@ void *mymalloc(size_t numBytes, char *filename, int line) {
  //   printf("entering first if statement to check if need to initialize\n");
     if(memoryList == NULL) {
         initialize();
-        printf("Memory initialized in %s on line %d\n", __FILE__, __LINE__);
+    //    printf("Memory initialized in %s on line %d\n", __FILE__, __LINE__);
 	initialized = 0;
     }
     crnt = memoryList;
@@ -63,7 +65,8 @@ void *mymalloc(size_t numBytes, char *filename, int line) {
     }
     else {
         result = NULL;
-  //      printf("Sorry. No sufficient memory to allocate\n");
+        printf("ERROR: No space is available to hold the block you requested.\n
+        Filename: %s, Line: %d\n", filename, line);
         return result;
     }
 }
@@ -86,15 +89,34 @@ void merge(){
 }
 
 void myfree(void* ptr, char *filename, int line){
+    if(ptr == NULL) {
+        printf("ERROR: Cannot free a null pointer.\n
+        Filename: %s, Line: %d\n", filename, line);
+        return;
+    }
+    if(memoryList == NULL) {
+        printf("ERROR: Free call is invalid, since you haven't malloced anything\n
+        Filename: %s, Line: %d\n", filename, line);
+        return;
+    }
  //   printf("entered free\n");
     if(((void*)myblock<=ptr)&&(ptr<=(void*)(myblock+4096))){
 //	    printf("entered if in free\n");
         struct metablock* crnt=ptr;
         --crnt;
+        if(crnt->free == 1) {
+            printf("ERROR: The address you are trying to free is already free.\n
+            Filename: %s, Line: %d\n", filename, line);
+            return;
+        }
         crnt->free=1;
 //	printf("entering merge from free\n");
         merge();
     }
-    else printf("Please provide a valid pointer allocated by MyMalloc\n");
+    else {
+         printf("ERROR: The address you are trying to free is out of bounds.\n
+        Filename: %s, Line: %d\n", filename, line);
+        return;
+    }
 }
 
