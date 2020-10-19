@@ -35,7 +35,7 @@ void *mymalloc(size_t numBytes, char *filename, int line) {
     // the starting address of the allocated chunk of memory
     void *result;
  //   printf("entering first if statement to check if need to initialize\n");
-    if(!initialized) {
+    if(memoryList == NULL) {
         initialize();
         printf("Memory initialized in %s on line %d\n", __FILE__, __LINE__);
 	initialized = 0;
