@@ -1,12 +1,14 @@
 #include <stdio.h>
 #include <stddef.h>
 #include "mymalloc.h"
+#define DEBUG 0
 
 void initialize() {
  //   printf("initialize called\n");
     memoryList = (void *) myblock;
     memoryList->size = (4096 - sizeof(struct metablock));
-    printf("size of memlist is %d\n", memoryList->size);
+    if(DEBUG)
+        printf("size of memlist is %d\n", memoryList->size);
     memoryList->free = 1;
     memoryList->next = NULL;
 //    printf("initialized success\n");
@@ -18,33 +20,49 @@ void initialize() {
 void split(struct metablock *correctSlot, size_t size) {
     // new metadata block created. its size will be 
     // equal to the sizeof the metablock the the size requested
-    struct metablock *new = (void *)((void *)correctSlot+size+sizeof(struct metablock));
-    new->size = (correctSlot->size)-size-sizeof(struct metablock);
-    new->free = 1;
-    new->next = correctSlot->next;
+    int tmp = (correctSlot->size)-size;
+    struct metablock *new;
+    if(tmp >= ( (int) sizeof(struct metablock))) {
+        new = (void *)((void *)correctSlot+size+sizeof(struct metablock));
+        new->size = (correctSlot->size)-size-sizeof(struct metablock);
+        new->free = 1;
+        new->next = correctSlot->next;
+        if(DEBUG)
+            printf("From split: Enough Available size after split: %d\n", tmp);
+    }
+    else {
+        new = NULL;
+        if(DEBUG)
+            printf("From split: Not enough Available size after split: %d\n", tmp);
+    }
     correctSlot->size = size;
     correctSlot->free = 0;
     correctSlot->next = new;
 }
 
 void *mymalloc(size_t numBytes, char *filename, int line) {
-	printf("trying to allocate %d bytes\n", numBytes);
+    if(DEBUG)
+	    printf("trying to allocate %d bytes\n", numBytes);
     if(numBytes == 0)
         return NULL;
     // the metablock pointers will be used to traverse through the list
     struct metablock *crnt, *prev;
     // the starting address of the allocated chunk of memory
     void *result;
+    int crntInitialized = 0;
  //   printf("entering first if statement to check if need to initialize\n");
     if(memoryList == NULL) {
+        crntInitialized = 1;
         initialize();
     //    printf("Memory initialized in %s on line %d\n", __FILE__, __LINE__);
     }
     crnt = memoryList;
     // we keep on traversing until we find a block that is free and of right size
     while((((crnt->size) < numBytes) || ((crnt->free) == 0)) && (crnt->next != NULL)) {
-	    printf("available size: %d\n", crnt->size);
-	    printf("required size: %d\n", numBytes);
+        if(DEBUG) {
+            printf("available size: %d\n", crnt->size);
+            printf("required size: %d\n", numBytes);
+        }
         prev = crnt;
         crnt = crnt->next;
   //      printf("One block checked\n");
@@ -53,14 +71,23 @@ void *mymalloc(size_t numBytes, char *filename, int line) {
     if((crnt->size) == numBytes) {
         crnt->free = 0;
         result = (void *)(++crnt);
-      printf("Exact fitting block allocated\n");
+        if(DEBUG)
+            printf("Exact fitting block allocated\n");
         return result;
     }
     // if the chunk is of greater size than needed, split the chunk
-    else if((crnt->size) > (numBytes+sizeof(struct metablock))) {
+    else if((crntInitialized == 0) && (crnt->size) > (numBytes+sizeof(struct metablock))) {
         split(crnt, numBytes);
         result = (void *)(++crnt);
-        printf("Fitting block allocated with a split\n");
+        if(DEBUG)
+            printf("Fitting block allocated with a split\n");
+        return result;
+    }
+    else if((crntInitialized == 1) && (crnt->size) > (numBytes)) {
+        split(crnt, numBytes);
+        result = (void *)(++crnt);
+        if(DEBUG)
+            printf("Fitting block allocated with a split. block was initialized\n");
         return result;
     }
     else {
@@ -89,6 +116,8 @@ void merge(){
 }
 
 void myfree(void* ptr, char *filename, int line){
+	if(DEBUG)
+		printf("Entered the free function\n");
     if(ptr == NULL) {
         printf("ERROR: Cannot free a null pointer.\n"
         "Filename: %s, Line: %d\n", filename, line);
@@ -99,22 +128,39 @@ void myfree(void* ptr, char *filename, int line){
         "Filename: %s, Line: %d\n", filename, line);
         return;
     }
- //   printf("entered free\n");
+ 	if(DEBUG)
+		printf("entering first if in free\n");
     if(((void*)myblock<=ptr)&&(ptr<=(void*)(myblock+4096))){
-//	    printf("entered if in free\n");
+	    if(DEBUG)
+	    	printf("entered first if in free\n");
         struct metablock* crnt=ptr;
         struct metablock *tracker = memoryList;
         struct metablock *prev = NULL;
+	struct metablock *temp;
+	temp = tracker + 1;
         int isBlock = 0;
-        if((tracker + 1) == ptr)
+        if((tracker + 1) == ptr) {
             isBlock = 1;
+	        if(DEBUG)
+		        printf("is block found before while\n");
+	    }
+        else {
+            if(DEBUG) {
+                printf("address of pointer to be freed: %p\n", &ptr);
+                printf("address of tracker: %p\n", &(temp));
+            }
+        }
         while(!isBlock) {
+	    if(DEBUG)
+		    printf("entered while loop\n");
             prev = tracker;
             if(tracker != NULL) {
                 tracker = tracker->next;
                 if(tracker != NULL) {
                     if((tracker + 1) == ptr) 
                         isBlock = 1;
+		    if(DEBUG)
+			    printf("is block found inside while\n");
                 }
                 else
                     break;
@@ -123,6 +169,8 @@ void myfree(void* ptr, char *filename, int line){
                 break;
         }
         if(isBlock) {
+		if(DEBUG)
+			printf("proceeding with operations after a block is confirmed\n");
             --crnt;
             if(crnt->free == 1) {
                 printf("ERROR: The address you are trying to free is already free.\n"
@@ -136,7 +184,8 @@ void myfree(void* ptr, char *filename, int line){
                 "Filename: %s, Line: %d\n", filename, line);
                 return;
         }
-//	printf("entering merge from free\n");
+	if(DEBUG)
+		printf("entering merge from free\n");
         merge();
     }
     else {
