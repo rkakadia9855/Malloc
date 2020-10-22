@@ -3,6 +3,20 @@
 #include "mymalloc.h"
 #define DEBUG 0
 
+void print_memory_state() {
+    struct metablock *iterator;
+    iterator = memoryList;
+    while(iterator != NULL) {
+        printf("Block size: %d\n", (int) iterator->size);
+        printf("Availability status: %d\n", (int) iterator->free);
+        if(iterator->next == NULL)
+            printf("Has next pointer: no\n");
+        else
+            printf("Has next pointer: yes\n");
+        iterator = iterator->next;
+    }
+}
+
 void initialize() {
  //   printf("initialize called\n");
     memoryList = (void *) myblock;
@@ -68,7 +82,7 @@ void *mymalloc(size_t numBytes, char *filename, int line) {
   //      printf("One block checked\n");
     }
     // found the perfect block. allocate the memory and return the pointer
-    if((crnt->size) == numBytes) {
+    if((crnt->size) == numBytes  && crnt->free == 1) {
         crnt->free = 0;
         result = (void *)(++crnt);
         if(DEBUG)
@@ -76,19 +90,35 @@ void *mymalloc(size_t numBytes, char *filename, int line) {
         return result;
     }
     // if the chunk is of greater size than needed, split the chunk
-    else if((crntInitialized == 0) && (crnt->size) > (numBytes+sizeof(struct metablock))) {
+    else if((crnt->size) > (numBytes+sizeof(struct metablock)) && crnt->free == 1) {
         split(crnt, numBytes);
         result = (void *)(++crnt);
         if(DEBUG)
             printf("Fitting block allocated with a split\n");
         return result;
     }
-    else if((crntInitialized == 1) && (crnt->size) > (numBytes)) {
-        split(crnt, numBytes);
-        result = (void *)(++crnt);
-        if(DEBUG)
-            printf("Fitting block allocated with a split. block was initialized\n");
-        return result;
+    else if(crnt == memoryList) {
+        printf("CRNT IS MEMORYLIST\n");
+        if((crnt->size) == numBytes  && crnt->free == 1) {
+            crnt->free = 0;
+            result = (void *)(++crnt);
+            if(DEBUG)
+                printf("Exact fitting block allocated\n");
+            return result;
+        }
+        else if((crnt->size) > (numBytes) && crnt->free == 1) {
+            split(crnt, numBytes);
+            result = (void *)(++crnt);
+            if(DEBUG)
+                printf("Fitting block allocated with a split. block was initialized\n");
+            return result;
+        }
+        else {
+            result = NULL;
+            printf("ERROR: No space is available to hold the block you requested.\n"
+            "Filename: %s, Line: %d\n", filename, line);
+            return result;
+        }
     }
     else {
         result = NULL;
@@ -105,6 +135,10 @@ void merge(){
  //   printf("entered merge\n");
     struct metablock *crnt,*prev;
     crnt=memoryList;
+    //
+    if(crnt != NULL && crnt->next == NULL) {
+	crnt->size = 4096 - sizeof(struct metablock);
+    }
     while((crnt != NULL) && ((crnt->next)!=NULL)){
         if((crnt->free) && (crnt->next->free)){
             crnt->size+=(crnt->next->size)+sizeof(struct metablock);
@@ -193,5 +227,6 @@ void myfree(void* ptr, char *filename, int line){
         "Filename: %s, Line: %d\n", filename, line);
         return;
     }
+    merge();
 }
 
