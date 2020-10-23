@@ -7,7 +7,7 @@ void print_memory_state() {
     struct metablock *iterator;
     iterator = memoryList;
     while(iterator != NULL) {
-        printf("Block size: %d\n", (int) iterator->size);
+        printf("Block size: %ld\n", iterator->size);
         printf("Availability status: %d\n", (int) iterator->free);
         if(iterator->next == NULL)
             printf("Has next pointer: no\n");
@@ -22,7 +22,7 @@ void initialize() {
     memoryList = (void *) myblock;
     memoryList->size = (4096 - sizeof(struct metablock));
     if(DEBUG)
-        printf("size of memlist is %d\n", memoryList->size);
+        printf("size of memlist is %ld\n", memoryList->size);
     memoryList->free = 1;
     memoryList->next = NULL;
 //    printf("initialized success\n");
@@ -56,26 +56,22 @@ void split(struct metablock *correctSlot, size_t size) {
 
 void *mymalloc(size_t numBytes, char *filename, int line) {
     if(DEBUG)
-	    printf("trying to allocate %d bytes\n", numBytes);
+	    printf("trying to allocate %ld bytes\n", numBytes);
     if(numBytes == 0)
         return NULL;
     // the metablock pointers will be used to traverse through the list
     struct metablock *crnt, *prev;
     // the starting address of the allocated chunk of memory
     void *result;
-    int crntInitialized = 0;
- //   printf("entering first if statement to check if need to initialize\n");
     if(memoryList == NULL) {
-        crntInitialized = 1;
         initialize();
-    //    printf("Memory initialized in %s on line %d\n", __FILE__, __LINE__);
     }
     crnt = memoryList;
     // we keep on traversing until we find a block that is free and of right size
     while((((crnt->size) < numBytes) || ((crnt->free) == 0)) && (crnt->next != NULL)) {
         if(DEBUG) {
-            printf("available size: %d\n", crnt->size);
-            printf("required size: %d\n", numBytes);
+            printf("available size: %ld\n", crnt->size);
+            printf("required size: %ld\n", numBytes);
         }
         prev = crnt;
         crnt = crnt->next;
@@ -98,7 +94,6 @@ void *mymalloc(size_t numBytes, char *filename, int line) {
         return result;
     }
     else if(crnt == memoryList) {
-        printf("CRNT IS MEMORYLIST\n");
         if((crnt->size) == numBytes  && crnt->free == 1) {
             crnt->free = 0;
             result = (void *)(++crnt);
@@ -133,7 +128,7 @@ void *mymalloc(size_t numBytes, char *filename, int line) {
 //  metablocks lying in between them
 void merge(){
  //   printf("entered merge\n");
-    struct metablock *crnt,*prev;
+    struct metablock *crnt, *prev;
     crnt=memoryList;
     //
     if(crnt != NULL && crnt->next == NULL) {
@@ -168,8 +163,8 @@ void myfree(void* ptr, char *filename, int line){
 	    if(DEBUG)
 	    	printf("entered first if in free\n");
         struct metablock* crnt=ptr;
+        struct metablock *prev;
         struct metablock *tracker = memoryList;
-        struct metablock *prev = NULL;
 	struct metablock *temp;
 	temp = tracker + 1;
         int isBlock = 0;
