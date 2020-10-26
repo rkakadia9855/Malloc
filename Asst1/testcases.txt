@@ -1,0 +1,77 @@
+Test Cases:
+
+(the diagram of block might appear distorted is it is not opened in notepad)
+----------------------------------------------|
+  metablock             | datablock	      |
+size_t size;		|		      |
+int free;               |		      |
+struct metablock next;	|		      |
+----------------------------------------------|
+
+Workloads A, B, C don't display any errors. But workloads D and E report few errors because of the nature of their design.
+
+Workload D:
+
+This workload is mainly designed to specifically test the efficient handling of certain errors that occur while mallocing and freeing memory.
+
+Firstly, we try to free a pointer that actually points to the middle of the data block that was malloced. 
+Our myfree function will detect that it is not the start of the datablock and successfully return an error message. 
+So, it ensures that the data block is freed only if the pointer that points to the start of the data block is passed.
+
+It then tests the freeing of a pointer that was not malloced and freeing a pointer that is actually not a pointer.
+In both cases, our myfree function successfully displays an error message that says that the pointer is out of bonds.
+We also make sure that we can successfully free the pointers that are valid.
+
+Then we start testing our error handling with mymalloc function:
+Firstly, we malloc 4072 bytes, the max amount that can be malloced considering our metablock is 24 bytes.
+It successfully gets malloced. Then we try to malloc 1 byte which results in an error being displayed as there is no more space in memory.
+Then we free the 4072 bytes that were malloced. We also called free for the 1 byte to make sure it isn't malloced, it displays an error 
+message that null pointer cannot be freed.
+
+Then we malloc 4047 bytes. That means that the total space occupied equals 4047+24 = 4071. 
+Note: +24 because sizeof(struct metablock) is equal to 24.
+Then we malloc 1 byte. This will be successfully malloced because the left over space after the previous malloc is 4096-4071 = 25.
+And we see that 25 bytes will be required to malloc 1 byte because we need 24 bytes for the metablock and then we can malloc the 1 byte.
+Then we free both the data blocks.
+
+Now we try mallocing 4071 bytes. That means that the total space occupied equals 4071+24 = 4095. But since, the 1 byte that is left in memory
+is of no use as even the metablock can fit into that much space, we simply add that extra space to the datablock 
+So, the total space occupied at the end is 4096 bytes.
+We free the allocated space.
+
+Workload E:
+
+This workload deliberately fragments the memory and tests if the error handling is carried out efficiently.
+
+Firstly, we keep on mallocing 170 bytes until there is no more space left.
+The while loop loops 21 times, and so we malloc 170 bytes a total of 20 times. However, in the last malloc, the available space if 192 bytes, 
+and we want to malloc 170 bytes. But since 192-170=22 < 24 which is the minimum number of bytes required to form a next block, 
+we allocate 192 bytes at the end.
+So total space occupied is equal to (170*20) + (24*21) + 192 = 4096
+
+Now we free every alternate block, starting with the first one. This would fragment the memory.
+The last block, which was of size 192 bytes, also gets freed. So the max size of memory that can now be malloced is 192 bytes.
+We try to malloc 195 bytes but an error gets displayed, which is an expected behaviour. The total amount of free space is greater than
+195 bytes but the max space continuously available is 192 bytes as the memory is fragmented and hence an error should be displayed.
+
+Now we try to malloc 85 bytes into the free space until we cannot anymore. All the datablocks that were previously freed, are split 
+because we need to malloc 85 bytes but free space available is 170 bytes and 192 bytes. To know more about split, refer to readme.pdf
+
+After the malloc of 85 bytes, max space available is 192-85-24=83 bytes. There is still a lot of total free space, but the max
+size of memory continuously available is 83.
+
+So we try to malloc 85 bytes, expecting an error to be displayed.
+
+Finally, we free all the memory that was malloced.
+
+So we have successfully tested the following:
+  -	freeing a pointer that is not actually a pointer
+  -	freeing memory that was not malloced
+  -	freeing memory that is already free
+  -	free data block by not passing pointer to the start of the data block
+  -	mallocing more bytes than max available
+  -	mallocing bytes less than max available
+  -	mallocing bytes equal to exactly max available
+  -	fragmenting memory and trying to malloc: 
+	  -	more memory than max continuously available
+	  -	less than or equal to the max continuously available memory
